@@ -133,7 +133,7 @@ def train(opt,code_length):
     qB = encode(model, testloader, num_test, code_length)
     rB = V
     mAP = calc_hr.calc_map(qB, rB, test_labels.numpy(), database_labels.numpy())
-    topkmap = calc_hr.calc_topMap(qB, rB, test_labels.numpy(), database_labels.numpy(), record['param']['topk'])
+    topkmap = calc_hr.calc_topMap(qB, rB, test_labels.numpy(), database_labels.numpy(),54000)
     logger.info("The map is {}".format(topkmap))
 
 
