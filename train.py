@@ -14,6 +14,7 @@ import os
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import utils.cnn_model as cnn_model
+from validate import validate
 
 """
 The training function for this asymmetric hashing function
@@ -60,20 +61,22 @@ def train(opt,code_length):
     V = np.zeros((num_database, code_length))
 
     model.train()
+    best_map = 0
     for iter in range(max_iter):
         iter_time = time.time()
-        '''
-        sampling and construct similarity matrix
-        '''
+        # '''
+        # sampling and construct similarity matrix
+        # '''
         select_index = list(np.random.permutation(range(num_database)))[0: num_samples]
         _sampler = subsetsampler.SubsetSampler(select_index)
         trainloader = DataLoader(dset_database, batch_size=batch_size,
                                  sampler=_sampler,
                                  shuffle=False,
                                  num_workers=4)
-        '''
-        learning deep neural network: feature learning
-        '''
+        # '''
+        # learning deep neural network: feature learning
+        # '''
+
         sample_label = database_labels.index_select(0, torch.from_numpy(np.array(select_index)))
         Sim = calc_sim(sample_label, database_labels)
         U = np.zeros((num_samples, code_length), dtype=np.float)
@@ -110,16 +113,11 @@ def train(opt,code_length):
         loss_ = calc_loss(V, U, Sim.cpu().numpy(), code_length, select_index, gamma, opt)
         logger.info('[Iteration: %3d/%3d][Train Loss: %.4f]', iter, max_iter, loss_)
         
-        if iter !=0 and iter % opt.test_interval == 0:
-            model.eval()
-            testloader = DataLoader(dset_test, batch_size=1,
-                                    shuffle=False,
-                                    num_workers=4)
-            qB = encode(model, testloader, num_test, code_length)
-            rB = V
-           # mAP = calc_hr.calc_map(qB, rB, test_labels.numpy(), database_labels.numpy())
-            topkmap = calc_hr.calc_topMap(qB, rB, test_labels.numpy(), database_labels.numpy(), 54000)
-            logger.info("The map is {}".format(topkmap))
+        if iter !=0 and (iter + 1) % opt.test_interval == 0:
+            curr_map = validate(opt, code_length, iter, best_map, net= model, gallery_codes= V)
+            if curr_map > best_map:
+                best_map = curr_map
+            logger.info("The map is {}".format(curr_map))
 
 
 
@@ -127,14 +125,7 @@ def train(opt,code_length):
     training procedure finishes, evaluation
     '''
     model.eval()
-    testloader = DataLoader(dset_test, batch_size=1,
-                             shuffle=False,
-                             num_workers=4)
-    qB = encode(model, testloader, num_test, code_length)
-    rB = V
-    mAP = calc_hr.calc_map(qB, rB, test_labels.numpy(), database_labels.numpy())
-    topkmap = calc_hr.calc_topMap(qB, rB, test_labels.numpy(), database_labels.numpy(),54000)
-    logger.info("The map is {}".format(topkmap))
-
+    validate(opt, code_length, iter, best_map, net= model, gallery_codes= V)
+    
 
     

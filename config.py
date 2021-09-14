@@ -30,7 +30,16 @@ def get_parsed_args():
     
     parser.add_argument('--dataset-name', default= 'cifar10', type= str, 
                         help= "Input the  training dataset name ")
+    
+    parser.add_argument('--machine-name', default= '1080', type= str, 
+                        help= "Input the  training dataset name ")
 
+    parser.add_argument('--checkpoint_path', default= './log/checkpoint', type= str,
+                        help= "The checkpoint path")
+    
+    parser.add_argument('--topk', default= '54000', type= int,
+                        help= "the evalutation topK")
+    
     parser.add_argument('--exp-name', default= 'cifar10-asy', type= str,
                         help= "The experiment name for this run")
     
