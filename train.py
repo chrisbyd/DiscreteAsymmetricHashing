@@ -110,8 +110,8 @@ def train(opt,code_length):
             U_ = U[:, sel_ind]
             V[:, k] = -np.sign(Q[:, k] + 2 * V_.dot(U_.transpose().dot(Uk)))
         iter_time = time.time() - iter_time
-        loss_ = calc_loss(V, U, Sim.cpu().numpy(), code_length, select_index, gamma, opt)
-        logger.info('[Iteration: %3d/%3d][Train Loss: %.4f]', iter, max_iter, loss_)
+        # loss_ = calc_loss(V, U, Sim.cpu().numpy(), code_length, select_index, gamma, opt)
+        # logger.info('[Iteration: %3d/%3d][Train Loss: %.4f]', iter, max_iter, loss_)
         
         if iter !=0 and (iter + 1) % opt.test_interval == 0:
             curr_map = validate(opt, code_length, iter, best_map, net= model, gallery_codes= V)
