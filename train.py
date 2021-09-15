@@ -15,7 +15,7 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 import utils.cnn_model as cnn_model
 from validate import validate
-
+from utils.discrete_loss import solve_dcc
 """
 The training function for this asymmetric hashing function
 """
@@ -26,6 +26,8 @@ def train(opt,code_length):
     os.environ['CUDA_VISIBLE_DEVICES'] = opt.gpu
     torch.manual_seed(0)
     torch.cuda.manual_seed(0)
+    device = torch.device("cuda:%d" % int(opt.gpu))
+
 
     '''
     parameter setting
@@ -80,6 +82,11 @@ def train(opt,code_length):
         sample_label = database_labels.index_select(0, torch.from_numpy(np.array(select_index)))
         Sim = calc_sim(sample_label, database_labels)
         U = np.zeros((num_samples, code_length), dtype=np.float)
+        
+        N = num_samples
+        UT = torch.zeros(code_length, N).to(device)
+        B = torch.randn(code_length, N).sign().to(device)
+        Y = sample_label.t().type(torch.FloatTensor).to(device)
         for epoch in range(epochs):
             for iteration, (train_input, train_label, batch_ind) in enumerate(trainloader):
                 batch_size_ = train_label.size(0)
@@ -89,9 +96,10 @@ def train(opt,code_length):
                 output = model(train_input)
                 S = Sim.index_select(0, torch.from_numpy(u_ind))
                 U[u_ind, :] = output.cpu().data.numpy()
+                UT[:, u_ind] = output.t().data 
 
                 model.zero_grad()
-                loss = adsh_loss(output, V, S, V[batch_ind.cpu().numpy(), :])
+                loss = adsh_loss(output, V, S, B.t()[u_ind,:])
                 logger.info("Iter:{}, iteration {}, the asymmetric loss is {}".format(iter, iteration,loss))
                 loss.backward()
                 optimizer.step()
@@ -110,6 +118,14 @@ def train(opt,code_length):
             U_ = U[:, sel_ind]
             V[:, k] = -np.sign(Q[:, k] + 2 * V_.dot(U_.transpose().dot(Uk)))
         iter_time = time.time() - iter_time
+
+
+        W = torch.inverse(B @ B.t() + 1.0 / 1e-2 * torch.eye(code_length, device= device)) @ B @ Y.t()
+     
+        B = solve_dcc(W, Y, UT, B)
+
+        
+
         # loss_ = calc_loss(V, U, Sim.cpu().numpy(), code_length, select_index, gamma, opt)
         # logger.info('[Iteration: %3d/%3d][Train Loss: %.4f]', iter, max_iter, loss_)
         
